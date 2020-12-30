@@ -57,6 +57,8 @@
  *                     buffer - MT
  *                   - Calculates  the number of spaces needed before ASCII
  *                     text (instead of using a loop to print spaces) - MT
+ * 11 Jul 20   0.6   - Now shows correct address - MT
+ *                   - Checks that the path is not a directory - MT
  *                   
  * To Do:            - Check that source is a valid file...
  *                   - Default to copying standard input to standard output
@@ -64,8 +66,8 @@
  */
  
 #define NAME         "gcc-hexdump"
-#define VERSION      "0.5"
-#define BUILD        "0019"
+#define VERSION      "0.6"
+#define BUILD        "0021"
 #define AUTHOR       "MT"
 #define COPYRIGHT    (__DATE__ +7) /* Extract copyright year from date */
  
@@ -75,10 +77,12 @@
 #define BUFFER_SIZE  16
  
 #include <stdio.h>
-#include <stdlib.h>   /* exit */
+#include <stdlib.h>     /* exit */
 #include <string.h>
-#include <ctype.h>    /* isprint */
+#include <ctype.h>      /* isprint */
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>   /* stat */
  
 char _aflag, _bflag, _cflag, _hflag = 0;
  
@@ -101,6 +105,18 @@ void version() { /* Display version information */
    fprintf(stdout, "This is free software: you are free to change and redistribute it.\n");
    fprintf(stdout, "There is NO WARRANTY, to the extent permitted by law.\n");
    exit(0);
+}
+ 
+int isfile(const char *_name) {
+   struct stat _file_d;
+   stat(_name, &_file_d);
+   return ((_file_d.st_mode & S_IFMT) == S_IFREG);
+}
+ 
+int isdir(const char *_name) {
+   struct stat _file_d;
+   stat(_name, &_file_d);
+   return ((_file_d.st_mode & S_IFMT) == S_IFDIR);   
 }
  
 int fprintbuf (FILE *_file, int _address, int _size, char _buffer[]) {
@@ -146,7 +162,7 @@ int main(int argc, char **argv) {
    int _count, _index, _status;
  
    /* Parse command line */
-   for (_count = 1; _count < argc && !_abort; _count++) {
+   for (_count = 1; _count < argc && (_abort != true); _count++) {
       if (argv[_count][0] == '-') {
          _index = 1;
          while (argv[_count][_index] != 0) {
@@ -198,21 +214,25 @@ int main(int argc, char **argv) {
  
    /* Dump files */
    for (_count = 1; _count < argc; _count++) {
-      _bytes = 0;
-      _size = 0;
-      if ((file = fopen(argv[_count], "rb")) != NULL) {
-         while((_size = fread(_buffer, 1, BUFFER_SIZE, file)) > 0 ){ 
-            if (_bytes == 0) {
-               if (_hflag) fprintf(stdout, "%s:\n", argv[_count]); /* Optionally print filename */
-            }
-            _bytes += _size;
-            fprintbuf (stdout, _bytes, _size, _buffer); /* Print buffer */
-         }
-         fclose(file);
+      _bytes = 0; /* Reset byte count */
+      if (isdir(argv[_count])) {
+         fprintf(stderr, "%s: %s: %s\n", argv[0], argv[_count], strerror(21));            
       }
       else {
-         _status = errno;
-         fprintf(stderr, "%s: %s: %s\n", argv[0], argv[_count], strerror(_status));      
+         if ((file = fopen(argv[_count], "rb")) != NULL) {
+            while((_size = fread(_buffer, 1, BUFFER_SIZE, file)) > 0 ){ 
+               if (_bytes == 0) {
+                  if (_hflag) fprintf(stdout, "%s:\n", argv[_count]); /* Optionally print filename */
+               }
+               fprintbuf (stdout, _bytes, _size, _buffer); /* Print buffer */
+               _bytes += _size;
+            }
+            fclose(file);
+         }
+         else {
+            _status = errno;
+            fprintf(stderr, "%s: %s: %s\n", argv[0], argv[_count], strerror(_status));      
+         }
       }
    }
    exit (0);
