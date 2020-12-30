@@ -59,6 +59,12 @@
  *                     text (instead of using a loop to print spaces) - MT
  * 11 Jul 20   0.6   - Now shows correct address - MT
  *                   - Checks that the path is not a directory - MT
+ * 21 Sep 20   0.7   - Fixed  bug in argument parser caused by an undefined
+ *                     value for i_abort on the first pass through the loop
+ *                     (only affected Tru64 UNIX) - MT
+ *                   - Added type prefixes to vairable names - MT
+ *                   - Can  now  parse  Microsoft/DEC  style  command  line
+ *                     options (allows partial completion) - MT
  *                   
  * To Do:            - Check that source is a valid file...
  *                   - Default to copying standard input to standard output
@@ -66,11 +72,11 @@
  */
  
 #define NAME         "gcc-hexdump"
-#define VERSION      "0.6"
-#define BUILD        "0021"
+#define VERSION      "0.7"
+#define BUILD        "0023"
 #define AUTHOR       "MT"
 #define COPYRIGHT    (__DATE__ +7) /* Extract copyright year from date */
- 
+  
 #define true         1
 #define false        0
  
@@ -79,26 +85,15 @@
 #include <stdio.h>
 #include <stdlib.h>     /* exit */
 #include <string.h>
+#include <stdarg.h>
 #include <ctype.h>      /* isprint */
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>   /* stat */
  
-char _aflag, _bflag, _cflag, _hflag = 0;
+char b_aflag, b_bflag, b_cflag, b_hflag = false;
  
-void about() { /* Display help text */
-   fprintf(stdout, "Usage: %s [OPTION]... [FILE]...\n", NAME);
-   fprintf(stdout, "Dump FILE(s) contents in hexadecimal or octal.\n\n");
-   fprintf(stdout, "  -a,                      display alpha numeric characters \n");
-   fprintf(stdout, "  -b,                      display bytes in octal\n");
-   fprintf(stdout, "  -c,                      print characters under hex\n");
-   fprintf(stdout, "  -h                       print filenames\n");
-   fprintf(stdout, "      --help               display this help and exit\n");
-   fprintf(stdout, "      --version            output version information and exit\n");
-   exit(0);
-}
- 
-void version() { /* Display version information */
+void v_version() { /* Display version information */
    fprintf(stderr, "%s: Version %s\n", NAME, VERSION);
    fprintf(stdout, "Copyright(C) %s %s\n", COPYRIGHT, AUTHOR);
    fprintf(stdout, "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.\n");
@@ -107,46 +102,81 @@ void version() { /* Display version information */
    exit(0);
 }
  
-int isfile(const char *_name) {
-   struct stat _file_d;
-   stat(_name, &_file_d);
-   return ((_file_d.st_mode & S_IFMT) == S_IFREG);
-}
- 
-int isdir(const char *_name) {
-   struct stat _file_d;
-   stat(_name, &_file_d);
-   return ((_file_d.st_mode & S_IFMT) == S_IFDIR);   
-}
- 
-int fprintbuf (FILE *_file, int _address, int _size, char _buffer[]) {
-   int counter;
-   fprintf(_file, "%07X: ", _address); /* Print address */
-   for (counter = 0; counter < _size; counter++) { /* Print buffer */
-      if (_bflag) /* Print bytes using octal */
-         fprintf(_file, "%03o ", (unsigned char) _buffer[counter]);
-      else /* Otherwise print byte using hex (default) */
-         fprintf(_file, "%02X ", (unsigned char) _buffer[counter]);
+#if defined(VMS) || defined(MSDOS) || defined (WIN32) /* Use DEC/Microsoft command line options */
+   void v_about() { /* Display help text */
+      fprintf(stdout, "Usage: %s [OPTION]... [FILE]...\n", NAME);
+      fprintf(stdout, "Dump FILE(s) contents in hexadecimal or octal.\n\n");
+      fprintf(stdout, "  /alphanumeric            display alpha numeric characters \n");
+      fprintf(stdout, "  /characters              print characters under hex\n");
+      fprintf(stdout, "  /octal                   display bytes in octal\n");
+      fprintf(stdout, "  /header                  print filenames\n");
+      fprintf(stdout, "  /version                 output version information and exit\n");
+      fprintf(stdout, "  /?, /help                display this help and exit\n");
+      exit(0);
    }
-   for (counter = 0; counter < _size; counter++) { /* Replace non printing*/
-      if (!(isprint(_buffer[counter])&&_buffer[counter]<127)) {
-         if (_cflag) 
-            _buffer[counter] = ' ';
+#else
+   void v_about() { /* Display help text */
+      fprintf(stdout, "Usage: %s [OPTION]... [FILE]...\n", NAME);
+      fprintf(stdout, "Dump FILE(s) contents in hexadecimal or octal.\n\n");
+      fprintf(stdout, "  -a, --alphanumeric       display alpha numeric characters \n");
+      fprintf(stdout, "  -b, --octal              display bytes in octal\n");
+      fprintf(stdout, "  -c, --characters         print characters under hex\n");
+      fprintf(stdout, "  -f, --filenames          print filenames\n");
+      fprintf(stdout, "  -?, --help               display this help and exit\n");
+      fprintf(stdout, "      --version            output version information and exit\n");
+      exit(0);
+   }
+#endif
+ 
+void v_error(const char *s_fmt, ...) { /* Print formatted error message */
+   va_list t_args;
+   va_start(t_args, s_fmt);
+   fprintf(stderr, "%s : ", NAME);
+   vfprintf(stderr, s_fmt, t_args);
+   va_end(t_args);
+}
+  
+int i_isfile(char *s_name) {
+   struct stat t_file_d;
+      stat(s_name, &t_file_d);
+   return ((t_file_d.st_mode & S_IFMT) == S_IFREG);
+}
+ 
+int i_isdir(char *s_name) {
+   struct stat t_file_d;
+   stat(s_name, &t_file_d);
+   return ((t_file_d.st_mode & S_IFMT) == S_IFDIR);
+}
+ #include <stdarg.h>
+
+int i_fprintbuf (FILE *_file, int _address, int _size, char _buffer[]) {
+   int i_count;
+   fprintf(_file, "%07X: ", _address); /* Print address */
+   for (i_count = 0; i_count < _size; i_count++) { /* Print buffer */
+      if (b_bflag) /* Print bytes using octal */
+         fprintf(_file, "%03o ", (unsigned char) _buffer[i_count]);
+      else /* Otherwise print byte using hex (default) */
+         fprintf(_file, "%02X ", (unsigned char) _buffer[i_count]);
+   }
+   for (i_count = 0; i_count < _size; i_count++) { /* Replace non printing*/
+      if (!(isprint(_buffer[i_count])&&_buffer[i_count]<127)) {
+         if (b_cflag) 
+            _buffer[i_count] = ' ';
          else
-            _buffer[counter] = '.';
+            _buffer[i_count] = '.';
       }
    }
-   if (_aflag) { /* Print ASCII characters on same line */
-      fprintf(_file, "%*s", (3 + _bflag) * (BUFFER_SIZE - _size), ""); /* Print required number of spaces - but being a bit naughty here... */
+   if (b_aflag) { /* Print ASCII characters on same line */
+      fprintf(_file, "%*s", (3 + b_bflag) * (BUFFER_SIZE - _size), ""); /* Print required number of spaces - but being a bit naughty here... */
       fprintf(_file, "%.*s", _size, _buffer); /* Print the number of characters in the buffer */
    }
-   if (_cflag) { /* Print ASCII characters underneath hex/octal values */
+   if (b_cflag) { /* Print ASCII characters underneath hex/octal values */
       fprintf(_file, "\n%07X: ", _address); /* Print address again ? */
-      for (counter = 0; counter < _size; counter++) {
-         if (_bflag) /* Display bytes in octal */
-            fprintf(_file, " %c  ", _buffer[counter]);
+      for (i_count = 0; i_count < _size; i_count++) {
+         if (b_bflag) /* Display bytes in octal */
+            fprintf(_file, " %c  ", _buffer[i_count]);
          else /* Otherwise print byte in hex (default) */
-            fprintf(_file, " %c ", _buffer[counter]);
+            fprintf(_file, " %c ", _buffer[i_count]);
       }
    }
    fprintf(_file, "\n");/* Print newline */
@@ -154,84 +184,119 @@ int fprintbuf (FILE *_file, int _address, int _size, char _buffer[]) {
 }
  
 int main(int argc, char **argv) {
-   FILE *file;
-   char _buffer[BUFFER_SIZE];
-   int _bytes; /* Number of bytes read from file */
-   int _size;  /* Number of bytes read into the buffer */
-   int _abort; /* Stop processing command line */
-   int _count, _index, _status;
+   FILE *h_file;
+   char c_buffer[BUFFER_SIZE];
+   int i_bytes; /* Number of bytes read from file */
+   int i_size;  /* Number of bytes read into the buffer */
+   int i_count, i_index, i_status;
  
-   /* Parse command line */
-   for (_count = 1; _count < argc && (_abort != true); _count++) {
-      if (argv[_count][0] == '-') {
-         _index = 1;
-         while (argv[_count][_index] != 0) {
-            switch (argv[_count][_index]) {
-            case 'a': /* Print ASCII characters on same line */
-                _aflag = 1; _cflag = 0; break;
-            case 'b': /* Display bytes in octal */
-                _bflag = 1; break;
-            case 'c': /* Print ASCII characters underneath hex/octal values */
-                _cflag = 1; _aflag = 0; break;
-            case 'h': /* Print filenames */
-                _hflag = 1; break;
-            case '?': /* Display help */      
-               about();               
-            case '-': /* '--' terminates command line processing */
-               _index = strlen(argv[_count]);
-               if (_index == 2) 
-                 _abort = true; /* '--' terminates command line processing */
-               else
-                  if (!strncmp(argv[_count], "--version", _index)) {
-                     version(); /* Display version information */
-                  }
-                  else if (!strncmp(argv[_count], "--show-filenames", _index)) {
-                     _hflag = true;
-                  }
-                  else if (!strncmp(argv[_count], "--help", _index)) {
-                     about();
-                  }
-                  else { /* If we get here then the we have an invalid long option */
-                     fprintf(stderr, "%s: invalid option %s\n", argv[0], argv[_count]);
-                     fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
-                     exit(-1);
-               }
-               _index--;
-               break;
-            default: /* If we get here the single letter option is unknown */
-               fprintf(stderr, "%s: unknown option -- %c\n", argv[0], argv[_count][_index]);
-               fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+#if defined(VMS) || defined(MSDOS) || defined (WIN32) /* Parse DEC/Microsoft style command line options */
+   for (i_count = 1; i_count < argc; i_count++) {
+      if (argv[i_count][0] == '/') {
+         for (i_index = 0; argv[i_count][i_index]; i_index++) /* Convert option to uppercase */
+            if (argv[i_count][i_index] >= 'a' && argv[i_count][i_index] <= 'z')
+               argv[i_count][i_index] = argv[i_count][i_index] - 32;
+         if (!strncmp(argv[i_count], "/VERSION", i_index)) {
+            v_version(); /* Display version information */
+         } else if (!strncmp(argv[i_count], "/ALPHANUMERIC", i_index)) {
+            b_aflag = true; b_cflag = false; 
+         } else if (!strncmp(argv[i_count], "/CHARACTERS", i_index)) {
+            b_cflag = true; b_aflag = false; 
+         } else if (!strncmp(argv[i_count], "/OCTAL", i_index)) {
+            b_bflag = true; 
+         } else if (!strncmp(argv[i_count], "/HEADER", i_index)) {
+            if (strlen(argv[i_count]) < 4) { /* Check option is not ambigious */
+               v_error("option '%s' is ambiguous; please specify '/HEADER' or '/HELP'.\n", argv[i_count]);
                exit(-1);
             }
-            _index++;
+            b_hflag = true;
+         } else if (!strncmp(argv[i_count], "/HELP", i_index)) {
+            v_about();
+         } else if (!strncmp(argv[i_count], "/?", i_index)) {
+            v_about();
+         } else { /* If we get here then the we have an invalid option */
+            v_error("invalid option %s\nTry '%s /help' for more information.\n", argv[i_count] , NAME);
+            exit(-1);
          }
-         if (argv[_count][1] != 0) {
-            for (_index = _count; _index < argc - 1; _index++) argv[_index] = argv[_index + 1];
-            argc--; _count--;
+         if (argv[i_count][1] != 0) {
+            for (i_index = i_count; i_index < argc - 1; i_index++) argv[i_index] = argv[i_index + 1];
+            argc--; i_count--;
          }
       }
    }
- 
-   /* Dump files */
-   for (_count = 1; _count < argc; _count++) {
-      _bytes = 0; /* Reset byte count */
-      if (isdir(argv[_count])) {
-         fprintf(stderr, "%s: %s: %s\n", argv[0], argv[_count], strerror(21));            
+#else /* Parse UNIX style command line options */
+   char b_abort = false; /* Stop processing command line */
+   
+   for (i_count = 1; i_count < argc && (b_abort != true); i_count++) {
+      if (argv[i_count][0] == '-') {
+         i_index = 1;
+         while (argv[i_count][i_index] != 0) {
+            switch (argv[i_count][i_index]) {
+            case 'a': /* Print ASCII characters on same line */
+                b_aflag = true; b_cflag = false; break;
+            case 'b': /* Display bytes in octal */
+                b_bflag = true; break;
+            case 'c': /* Print ASCII characters underneath hex/octal values */
+                b_cflag = true; b_aflag = false; break;
+            case 'h': /* Print filenames */
+                b_hflag = true; break;
+            case '?': /* Display help */      
+               v_about();               
+            case '-': /* '--' terminates command line processing */
+               i_index = strlen(argv[i_count]);
+               if (i_index == 2)
+                 b_abort = true; /* '--' terminates command line processing */
+               else
+                  if (!strncmp(argv[i_count], "--version", i_index)) {
+                     v_version(); /* Display version information */
+                  } else if (!strncmp(argv[i_count], "--alphanumeric", i_index)) {
+                     b_aflag = true; b_cflag = false;
+                  } else if (!strncmp(argv[i_count], "--octal", i_index)) {
+                     b_bflag = true;
+                  } else if (!strncmp(argv[i_count], "--characters", i_index)) {
+                     b_cflag = true; b_aflag = false;
+                  } else if (!strncmp(argv[i_count], "--filenames", i_index)) {
+                     b_hflag = true;
+                  } else if (!strncmp(argv[i_count], "--help", i_index)) {
+                     v_about();
+                  } else { /* If we get here then the we have an invalid long option */
+                     v_error("%s: invalid option %s\nTry '%s --help' for more information.\n", argv[i_count][i_index] , NAME);
+                     exit(-1);
+                  }
+               i_index--; /* Leave index pointing at end of string (so argv[i_count][i_index] = 0) */
+               break;
+            default: /* If we get here the single letter option is unknown */
+               v_error("unknown option -- %c\nTry '%s --help' for more information.\n", argv[i_count][i_index] , NAME);
+               exit(-1);
+            }
+            i_index++; /* Parse next letter in options */
+         }
+         if (argv[i_count][1] != 0) {
+            for (i_index = i_count; i_index < argc - 1; i_index++) argv[i_index] = argv[i_index + 1];
+            argc--; i_count--;
+         }
+      }
+   }
+#endif
+   for (i_count = 1; i_count < argc; i_count++) { /* Dump files */
+      i_bytes = 0; /* Reset byte count */
+      if (i_isdir(argv[i_count])) {
+         fprintf(stderr, "%s: %s: %s\n", argv[0], argv[i_count], strerror(21));            
       }
       else {
-         if ((file = fopen(argv[_count], "rb")) != NULL) {
-            while((_size = fread(_buffer, 1, BUFFER_SIZE, file)) > 0 ){ 
-               if (_bytes == 0) {
-                  if (_hflag) fprintf(stdout, "%s:\n", argv[_count]); /* Optionally print filename */
+         if ((h_file = fopen(argv[i_count], "rb")) != NULL) {
+            while((i_size = fread(c_buffer, 1, BUFFER_SIZE, h_file)) > 0 ){ 
+               if (i_bytes == 0) {
+                  if (b_hflag) fprintf(stdout, "%s:\n", argv[i_count]); /* Optionally print filename */
                }
-               fprintbuf (stdout, _bytes, _size, _buffer); /* Print buffer */
-               _bytes += _size;
+               i_fprintbuf (stdout, i_bytes, i_size, c_buffer); /* Print buffer */
+               i_bytes += i_size;
             }
-            fclose(file);
+            fclose(h_file);
          }
          else {
-            _status = errno;
-            fprintf(stderr, "%s: %s: %s\n", argv[0], argv[_count], strerror(_status));      
+            i_status = errno;
+            fprintf(stderr, "%s: %s: %s\n", argv[0], argv[i_count], strerror(i_status));      
          }
       }
    }
