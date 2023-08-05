@@ -17,15 +17,17 @@
 # of each line NOT spaces..!
 #
 #  30 Jul 23   0.1   - Initial version - MT
+#   4 Aug 23         - Added backup files to tar archive - MT
 #
 PROJECT	=  gcc-hexdump
 
 SOURCE	=  $(wildcard *.c) 	# Compile all source files 
 INCLUDE	=  $(wildcard *.h) 	# Automatically get all include files 
+BACKUP	=  $(wildcard *.c.[0-9])
 OBJECT	=  $(SOURCE:.c=.o)
 PROGRAM	=  $(SOURCE:.c=)
 
-FILES	=  $(SOURCE) $(INCLUDE) LICENSE README.md makefile .gitignore .gitattributes
+FILES	=  $(SOURCE) $(BACKUP) $(INCLUDE) LICENSE README.md makefile .gitignore .gitattributes
 LANG	=  LANG_$(shell (echo $$LANG | cut -f 1 -d '_'))
 UNAME	=  $(shell uname)
 
