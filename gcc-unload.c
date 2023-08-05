@@ -29,6 +29,7 @@
  *                     'unload' command.  I  don't know if this is due to a
  *                     bug in the CP/M-80 code or the documentation but the
  *                     original CP/M-80 'load' command accepts both - MT
+ * 04 Aug 23         - Checks that the path is not a directory - MT
  *                     
  * ToDo:             - Add the support for the motorola 'S' format.
  *                   - Allow  the load address and the transfer address  to
@@ -98,6 +99,13 @@ int i_isfile(char *s_name) /* Return true if path is a file */
    struct stat t_file_d;
    stat(s_name, &t_file_d);
    return (S_ISREG(t_file_d.st_mode));
+}
+
+int i_isdir(char *s_name) /* Return true if path is a directory */
+{
+   struct stat t_file_d;
+   stat(s_name, &t_file_d);
+   return (S_ISDIR(t_file_d.st_mode));
 }
 
 void v_dump_hex(FILE *h_file, int i_address) /* Display a file using intel hex starting at the specified address */
@@ -203,7 +211,7 @@ int main(int argc, char **argv)
 
    for (i_count = 1; i_count < argc; i_count++) /* Dump files */
    {
-      if (i_isfile(argv[i_count]))
+      if (!i_isdir(argv[i_count])) /* Check that input files isn't a directory! */
       {
          if ((h_file = fopen(argv[i_count], "rb")) != NULL) 
          {
@@ -213,14 +221,14 @@ int main(int argc, char **argv)
          else
          {
 #if defined(VMS) /* Use VAX-C extension (avoids potential ACCVIO) */
-            v_error("%s: %s\n", argv[i_count], strerror(errno, vaxc$errno)); 
+            v_error("Cannot open %s: %s\n", argv[i_count], strerror(errno, vaxc$errno)); 
 #else
-            v_error("%s: %s\n", argv[i_count], strerror(errno));
+            v_error("Cannot open %s: %s\n", argv[i_count], strerror(errno));
 #endif
          }
       }
       else
-         fprintf(stderr, "%s: %s: %s\n", argv[0], argv[i_count], strerror(21)); /** ToDo - Test on VMS ! */
+         v_error("Cannot open %s: Can't read from a directory\n", argv[i_count], argv[i_count]);
    }
    exit (0);
 }
