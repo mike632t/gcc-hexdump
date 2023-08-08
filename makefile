@@ -1,3 +1,4 @@
+#
 # makefile
 #
 # This program is free software: you can redistribute it and/or modify
@@ -37,7 +38,7 @@ FLAGS	=  -fcommon -Wall -pedantic -std=gnu99
 FLAGS	+= -D $(LANG)
 
 # Operating system specific settings
-ifeq ($(UNAME), NetBSD) # NetBSD..
+ifeq ($(UNAME), NetBSD) 	# NetBSD..
 LIBS	+=  -lcompat
 #FLAGS	+=  -I /usr/X11R7/include/ -L /usr/X11R7/lib/ -R /usr/X11R7/lib
 endif
@@ -45,7 +46,7 @@ endif
 # Compiler specific settings
 ifeq ($(CC), cc)
 LIBS	+=  -no-pie
-FLAGS	+=  -ansi
+#FLAGS	+=  -ansi
 endif
 
 ifdef DEBUG
