@@ -31,6 +31,8 @@
  *                     original CP/M-80 'load' command accepts both - MT
  * 04 Aug 23         - Checks that the path is not a directory - MT
  * 10 Aug 23         - Fixed very silly error with true/false values! - MT
+ *                   - Do not use stdbool.h as this isn;t available on some
+ *                     platforms - MT
  *                     
  * ToDo:             - Add the support for the motorola 'S' format.
  *                   - Allow  the load address and the transfer address  to
@@ -46,7 +48,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <stdarg.h>
 #include <ctype.h>   /* isprint */
 #include <errno.h>
