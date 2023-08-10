@@ -21,12 +21,15 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
  * 08 Aug 23   0.1   - Initial version - MT   
+ * 10 Aug 23         - Fixed very silly error with true/false values! - MT
+ * 
+ * ToDo:             - Ignore quoted strings and comments!
  * 
  */
 
 #define  NAME        "gcc-entab"
 #define  VERSION     "0.1"
-#define  BUILD       "0001"
+#define  BUILD       "0002"
 #define  AUTHOR      "MT"
 #define  COPYRIGHT   (__DATE__ + 7) /* Extract copyright year from date */
 
@@ -34,8 +37,8 @@
 
 #define  TAB_WIDTH   8
 
-#define  true        0
-#define  false       !true
+#define  false       0
+#define  true        !false
  
 #include <stdio.h>
 #include <stdlib.h>           
@@ -113,14 +116,12 @@ int i_isdir(char *s_name) /* Return true if path is a directory */
 #endif
 }
 
-void entab(FILE *h_file)
+void v_entab(FILE *h_file)
 {
-   int i_offset = 0;
+   int i_offset = 1;
    int i_blanks = 0;
    int i_char;
    
-   i_blanks = 0;
-   i_offset = 1;
    while ((i_char = fgetc(h_file)) != EOF)
    {
       if (i_char == ' ')
@@ -226,7 +227,7 @@ int main(int argc, char **argv)
          if ((h_file = fopen(argv[i_count], "r")) != NULL) /* Open input file, do not use binary mode as it makes a difference on non unix systems! */
          {
             if (b_hflag) fprintf(stdout, "%s:\n", argv[i_count]); /* Optionally print filename */
-            entab(h_file);
+            v_entab(h_file);
             fclose(h_file);
          }
          else

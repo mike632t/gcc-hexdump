@@ -30,6 +30,7 @@
  *                     bug in the CP/M-80 code or the documentation but the
  *                     original CP/M-80 'load' command accepts both - MT
  * 04 Aug 23         - Checks that the path is not a directory - MT
+ * 10 Aug 23         - Fixed very silly error with true/false values! - MT
  *                     
  * ToDo:             - Add the support for the motorola 'S' format.
  *                   - Allow  the load address and the transfer address  to
@@ -38,7 +39,7 @@
 
 #define  NAME        "gcc-unload"
 #define  VERSION     "0.1"
-#define  BUILD       "0002"
+#define  BUILD       "0004"
 #define  AUTHOR      "MT"
 #define  COPYRIGHT   (__DATE__ + 7) /* Extract copyright year from date */
  
@@ -50,8 +51,11 @@
 #include <ctype.h>   /* isprint */
 #include <errno.h>
 #include <sys/stat.h>
- 
+
 #define  BUFFER_SIZE 16
+
+#define  false       0
+#define  true        !false
 
 unsigned char a_buffer[BUFFER_SIZE];
 

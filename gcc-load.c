@@ -35,6 +35,7 @@
  *                     '.hex', and replacing the '.hex' with '.com') - MT
  * 08 Aug 23         - If  the address of the next record is  greater  than
  *                     the current offset then pad output with NOPs - MT
+ * 10 Aug 23         - Fixed very silly error with true/false values! - MT
  * 
  * ToDo:             - Check if the output file exists.
  *                   - Add support for Motorola 'S' format.
@@ -61,14 +62,14 @@
 
 #define  NAME        "gcc-load"
 #define  VERSION     "0.1"
-#define  BUILD       "0002"
+#define  BUILD       "0007"
 #define  AUTHOR      "MT"
 #define  COPYRIGHT   (__DATE__ + 7) /* Extract copyright year from date */
 
 #define  DEBUG
 
-#define  true        0
-#define  false       !true
+#define  false       0
+#define  true        !false
  
 #include <stdio.h>
 #include <stdlib.h>

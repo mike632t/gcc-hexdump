@@ -23,12 +23,13 @@
  *
  * 30 Jul 23   0.1   - Initial version - MT
  * 04 Aug 23         - Checks that the path is not a directory - MT
+ * 10 Aug 23         - Fixed very silly error with true/false values! - MT
  *
  */
 
 #define  NAME        "gcc-unload"
 #define  VERSION     "0.1"
-#define  BUILD       "0002"
+#define  BUILD       "0003"
 #define  AUTHOR      "MT"
 #define  COPYRIGHT   (__DATE__ + 7) /* Extract copyright year from date */
  
@@ -43,6 +44,9 @@
 #include <sys/stat.h>
  
 #define  BUFFER_SIZE 16
+
+#define  false       0
+#define  true        !false
 
 char b_aflag, b_bflag, b_cflag, b_hflag;
 unsigned char a_buffer[BUFFER_SIZE];
