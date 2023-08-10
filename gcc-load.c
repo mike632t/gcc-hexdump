@@ -33,10 +33,10 @@
  * 06 Aug 23         - Automatically generates the output filename from the
  *                     input  filename  (by checking that the  filetype  is
  *                     '.hex', and replacing the '.hex' with '.com') - MT
+ * 08 Aug 23         - If  the address of the next record is  greater  than
+ *                     the current offset then pad output with NOPs - MT
  * 
- * ToDo:             - If  the address of the next record is  greater  than
- *                     the current offset then pad output with NOPs.
- *                   - Check if the output file exists.
+ * ToDo:             - Check if the output file exists.
  *                   - Add support for Motorola 'S' format.
  *                   - Derive output filename from the input file name.
  * 
@@ -82,7 +82,6 @@
 #include <sys/stat.h>
 #endif
 #include "gcc-debug.h"
-
 
 void v_version() /* Display version information */
 {
@@ -193,6 +192,12 @@ int i_read_hex(FILE *h_input, FILE *h_output,int i_offset) /* Read intel hexadec
             else if (i_char >= 'A' && i_char <= 'F') i_address |= ((i_char - 'A' + 10) & 0x0F);
             else i_error++;
             if (i_count == 6) fprintf (stdout, "%04X", i_address);
+            if (i_address < i_offset) i_error++; /* Can't go backwards! */
+            while (i_offset < i_address) /* If the address of the next record is greater than the current offset then pad output with NOPs */
+            {
+               i_offset++;
+               fputc(0x00, h_output);
+            }
             i_count++;
             break;
          case 7: /* Get record type */
@@ -231,6 +236,7 @@ int i_read_hex(FILE *h_input, FILE *h_output,int i_offset) /* Read intel hexadec
                   if (i_bytes) 
                   {
                      fputc(i_data, h_output);
+                     i_offset++;
                      i_checksum += i_data;
                   }
                   else 
@@ -334,7 +340,7 @@ int main(int argc, char **argv)
       {
          if ((strlen(argv[i_count]) > 4)  && (!strcmp(argv[i_count] + strlen(argv[i_count]) - 4, ".hex"))) /* Check the filename ends in '.hex' */
          {
-            if ((h_input = fopen(argv[i_count], "r")) != NULL) /* Open the input file */
+            if ((h_input = fopen(argv[i_count], "r")) != NULL) /* Open input file, do not use binary mode as it makes a difference on non unix systems! */
             {
                if (argc > 2) fprintf(stdout, "%s\n", argv[i_count]); /* Print the files name if multiple files are being processed */
                strcpy(argv[i_count] + strlen(argv[i_count]) - 4, ".com"); /* Substitute '.com' for '.hex' in the file name */
